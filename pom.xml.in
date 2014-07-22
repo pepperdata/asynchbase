@@ -5,7 +5,7 @@
 
   <groupId>org.hbase</groupId>
   <artifactId>asynchbase</artifactId>
-  <version>@spec_version@-pepperdata</version>
+  <version>@spec_version@-pepperdata-${maven.build.timestamp}</version>
   <name>@spec_title@</name>
   <organization>
     <name>@spec_vendor@</name>
@@ -288,6 +288,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.build.timestamp.format>yyMMddHHmmss</maven.build.timestamp.format>
   </properties>
 
   <pluginRepositories>
