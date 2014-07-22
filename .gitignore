@@ -1,3 +1,27 @@
 build/
 pom.xml
 target/
+
+*.pyc
+.*.swp
+*.rrd
+*.class
+*.orig
+*.log
+
+#for Intellij
+\.idea
+*.iml
+
+# for mac finder
+.DS_Store
+
+# for eclipse
+.pydevproject
+.metadata
+.project
+.classpath
+.settings
+
+# rbcommons
+.pdreview

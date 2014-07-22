@@ -39,8 +39,8 @@ proto_builddir := $(top_builddir)/protobuf
 spec_title := Asynchronous HBase Client
 spec_vendor := The Async HBase Authors
 # Semantic Versioning (see http://semver.org/).
-spec_version := 1.5.0
-jar := $(top_builddir)/asynchbase-$(spec_version).jar
+spec_version := 1.5.0.1
+jar := $(top_builddir)/asynchbase-$(spec_version)-pepperdata.jar
 
 asynchbase_PROTOS := \
 	protobuf/Cell.proto	\

@@ -1,0 +1,808 @@
+#!/usr/bin/python -u
+"""Copyright (C) 2013 Pepperdata Inc. - All rights reserved.
+
+pdreview - Tool to help GitHub code review.
+
+"""
+
+from subprocess import PIPE
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import textwrap
+import urllib2
+import datetime
+import random
+
+
+# TODO(jesse): Make --find-copies optionally available.
+GIT_DIFF_FIND_COPY_CACHED = ["git", "diff", "--find-copies", "--cached",
+                             "--full-index"]
+GIT_DIFF_CACHED = ["git", "diff", "--cached", "--full-index"]
+GIT_DIFF_UNCACHED = ["git", "diff", "--full-index"]
+GIT_ADD_UNCACHED = ["git", "add", "--all"]
+GIT_FETCH_DRY_RUN = ["git", "fetch", "--dry-run", "--all"]
+PD_SERVER = "--server=https://rbcommons.com/s/pepperdata/"
+POST_REVIEW_TECH = ["post-review", "-o", "--target-groups=tech"]
+POST_REVIEW_SNAPSHOT = ["post-review", "--diff-only"]
+
+
+# review board server address.
+_server = []
+
+# Path to the .reviewboardrc if exists.
+_reviewboardrc = None
+
+# Path to the directory to have the .pdreview directory.
+_pdreview_dir = None
+
+
+def set_reviewboardrc():
+    """Sets the .reviewboardrc path if exists."""
+    global _reviewboardrc
+
+    reviewboardrc_path = get_git_root() + "/.reviewboardrc"
+    if os.path.isfile(reviewboardrc_path):
+        print "exist reviewboardrc_path=", reviewboardrc_path
+        _reviewboardrc = reviewboardrc_path
+    else:
+        print "doesn't exist reviewboardrc_path=", reviewboardrc_path
+        _reviewboardrc = None
+
+
+def has_reviewboardrc():
+    """Returns True if ithe reviewboardrc path exists."""
+    return _reviewboardrc is not None
+
+
+def set_review_server():
+    """Use the PD_SERVER unless the file .reviewboardrc exists."""
+    global _server
+
+    if has_reviewboardrc():
+        _server = []
+    else:
+        print "No .reviewboardrc, and will use " + PD_SERVER
+        _server = [PD_SERVER]
+
+
+def set_review_dir_from_args(args):
+    """Given args, try to determine the review directory."""
+    global _pdreview_dir
+
+    if args.review_dir is None:
+        # Uses the git root as a review directory.
+        _pdreview_dir = get_git_root()
+        if not has_reviewboardrc():
+            # Uses a special review directory for non Pepperdata commits.
+            basename = os.path.basename(_pdreview_dir)
+            review_dir = _pdreview_dir + "/../review_" + basename
+            _pdreview_dir = os.path.abspath(review_dir)
+    else:
+        # Uses the given directory as a review directory.
+        _pdreview_dir = args.review_dir
+
+
+def cmd_create_review(diff_file):
+    """Creates a command to create a review with the given diff file.
+
+    Returns:
+        A list of strings for the post command and its arguments.
+    """
+    return POST_REVIEW_TECH + _server + \
+           ["--diff-filename={0}".format(diff_file)]
+
+
+def cmd_post_snapshot(diff_file, review_id):
+    """Creates a command to push pending commits.
+
+    Returns:
+        A list of strings for the post command and its arguments.
+    """
+    return POST_REVIEW_SNAPSHOT + _server + \
+           ["-r", str(review_id)] + ["--diff-filename={0}".format(diff_file)]
+
+
+def is_in_git_tree():
+    p = subprocess.Popen(["git", "rev-parse", "--is-inside-work-tree"],
+                          stdout=PIPE, stderr=None)
+    (out, _) = p.communicate()
+    return p.returncode == 0 and "true" == out.strip()
+
+
+def assert_git_tree():
+    """ Makes sure that we are in a git tree.
+
+    Raises:
+        IOError if failed to run a git command.
+        ValueError if we are not in a git tree.
+    """
+    if not is_in_git_tree():
+        raise ValueError("We are not in a git tree!!!")
+
+
+def get_git_root():
+    """ Show the absolute path of the top-level directory.
+
+    Returns:
+        The absolute path of the top-level directory.
+
+    Raises:
+        IOError if it is not in a git tree.
+    """
+    p = subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=PIPE)
+    (out, _) = p.communicate()
+    if p.returncode != 0:
+        raise IOError("Can't get the git root directory.")
+    return out.strip()
+
+
+def any_cached_diffs():
+    """ Returns True if there is any cached diffs for commit.
+
+    Raises:
+        IOError if failed to run a git command.
+    """
+    p = subprocess.Popen(GIT_DIFF_CACHED, stdout=PIPE, stderr=None)
+    (out, _) = p.communicate()
+    if p.returncode != 0:
+        raise IOError("Failed to run a git command - " + str(GIT_DIFF_CACHED))
+    return len(out.strip()) > 0
+
+
+def any_uncached_diffs():
+    """ Returns True if there is any uncached diffs for commit.
+
+    Raises:
+        IOError if failed to run a git command.
+    """
+    p = subprocess.Popen(GIT_DIFF_UNCACHED, stdout=PIPE, stderr=None)
+    (out, _) = p.communicate()
+    if p.returncode != 0:
+        raise IOError("Failed to run a git command - " + \
+                      str(GIT_DIFF_UNCACHED,))
+    return len(out.strip()) > 0
+
+
+def assert_no_cached_diffs():
+    """ Raises an exception if there is any cached diffs.
+
+    Raises:
+        IOError if failed to run a git command.
+        ValueError if there is any cached diffs.
+    """
+    if any_cached_diffs():
+        raise ValueError("We don't support cached diffs. " + \
+              "Move them to uncached diffs - 'git reset HEAD <file>...'.")
+
+
+def assert_no_uncached_diffs():
+    """ Raises an exception if there is any uncached diffs.
+
+    Raises:
+        IOError if failed to run a git command.
+        ValueError if there is any uncached diffs.
+    """
+    if any_uncached_diffs():
+        raise ValueError("We don't support uncached diffs. " + \
+              "Move them to cached diffs - 'git add <file>...'.")
+
+
+def any_incoming_changes():
+    """ Returns True if there is any incoming changes.
+
+    Raises:
+        IOError if failed to run a git command.
+    """
+    p = subprocess.Popen(GIT_FETCH_DRY_RUN, stdout=PIPE, stderr=PIPE)
+    (out, err) = p.communicate()
+    if p.returncode != 0:
+        raise IOError("Failed to run a git command - " + \
+                      str(GIT_FETCH_DRY_RUN,))
+    return re.search("\s[0-9A-Fa-f]+\\.\\.[0-9A-Fa-f]+\s", err)
+
+
+def assert_no_incoming_changes():
+    """ Raises an exception if there is any incoming_changes.
+
+    Raises:
+        IOError if failed to run a git command.
+        ValueError if there is any incoming_changes.
+    """
+    if any_incoming_changes():
+        raise ValueError("Commit/Push requires no incoming_changes. " + \
+              "Update local repository - 'git pull'.")
+
+
+def capture_git_uncached_diffs():
+    """ Capture diffs to a file at '/tmp' and returns the path.
+
+    Returns:
+        File path to the diff file.
+
+    Raises:
+        IOError if failed to run a git command.
+    """
+    diff_file = datetime.datetime.now().strftime(\
+        "/tmp/" + os.getlogin() + ".%Y%m%d%H%M%S.%f.diff.txt")
+    with open(diff_file, "w") as f:
+        rc = subprocess.call(GIT_DIFF_UNCACHED, stdout=f, stderr=None)
+    if rc != 0:
+        raise IOError("Failed to run a git command - " + \
+                      str(GIT_DIFF_UNCACHED))
+    return diff_file
+
+
+def capture_git_cached_diffs(find_copies):
+    """ Capture cached diffs to a file at '/tmp' and returns the path.
+
+    Args:
+        find_copies: True to detect copied and renamed files.
+    Returns:
+        File path to the diff file.
+
+    Raises:
+        IOError if failed to run a git command.
+    """
+    cmd = GIT_DIFF_FIND_COPY_CACHED if find_copies else GIT_DIFF_CACHED
+    diff_file = datetime.datetime.now().strftime(\
+        "/tmp/" + os.getlogin() + ".%Y%m%d%H%M%S.%f.diff.txt")
+    with open(diff_file, "w") as f:
+        rc = subprocess.call(cmd, stdout=f, stderr=None)
+    if rc != 0:
+        raise IOError("Failed to run a git command - " + str(cmd))
+    return diff_file
+
+
+def stage_uncached_changes_for_commit():
+    """Stages all the uncached diffs to cached diffs."""
+    # TODO: Support removed files.
+    # git add $GIT_ROOT
+    cmd = GIT_ADD_UNCACHED + [get_git_root()]
+    rc = subprocess.call(cmd, stdout=None, stderr=None)
+    if rc != 0:
+        raise IOError("Failed to run a git command - " + str(cmd))
+
+
+def _assert_diff_file(diff_file):
+    if not os.access(diff_file, os.F_OK):
+        raise ValueError("Failed to post a review because " + diff_file +
+                         " doesn't exist.")
+    statinfo = os.stat(diff_file)
+    if statinfo.st_size == 0:
+        raise ValueError("Failed to post a review because " + diff_file +
+                         " is empty.")
+
+def post_review(diff_file):
+    """ Post a review request with the given diff_file.
+
+    Returns:
+        Outputs as a byte string.
+    Raises:
+        IOError if failed to run a git command.
+        ValueError if the diff file is empty or doesn't exist.
+    """
+    _assert_diff_file(diff_file)
+    # post-review -o --target-groups=tech "--diff-filename=${DIFF_FILE}"
+    cmd = cmd_create_review(diff_file)
+    try:
+        return subprocess.check_output(cmd)
+    except CalledProcessError, e:
+        raise IOError("Failed to run a git command - " + str(cmd))
+
+
+def post_snapshot(diff_file, review_id):
+    """ Post a snapshot of an existing review request with the given diff_file.
+
+    Raises:
+        IOError if failed to run a git command.
+        ValueError if the diff file is empty or doesn't exist.
+    """
+    _assert_diff_file(diff_file)
+    # post-review --diff-only -r "${REVIEW_ID}" "--diff-filename=${DIFF_FILE}"
+    cmd = cmd_post_snapshot(diff_file, review_id)
+    rc = subprocess.call(cmd, stdout=None, stderr=None)
+    if rc != 0:
+        raise IOError("Failed to run a git command - " + str(cmd))
+
+
+def ask_yes_no_question(message):
+    """ Ask a yes-no question and return True for yes."""
+    choice = raw_input(message + " [Y/N]? ")
+    return choice.lower() == 'y'
+
+
+class ReviewInfo(object):
+    """Class for saving and retrieving a review number.
+
+    When a review is created in reviewboard, this can save
+    the review info locally, and then when an
+    update/snapshot/commit is requested, you don't have to
+    recall what the review number is.
+    """
+
+    def __init__(self, review_dir):
+        """Get root path of git, and create a directory there.
+
+        Args:
+            review_dir: The directory to create .pdreview directory.
+        """
+        self._root_dir = os.path.join(review_dir, '.pdreview')
+        if not os.path.exists(self._root_dir):
+            os.mkdir(self._root_dir)
+        self._review_info_file = os.path.join(self._root_dir, 'rbcommons')
+
+    def get_review_number(self):
+        """Retrieves the saved review number.
+
+        Returns:
+            The review number if found, -1 if not found."""
+        if os.path.isfile(self._review_info_file):
+            with open(self._review_info_file, 'r') as file_handle:
+                content = file_handle.read()
+                match = re.search(r'\s#(\d+)\b', content)
+                if match is not None:
+                    return match.group(1)
+        return -1
+
+    def check_existing_review(self):
+        """Let user decide if file should be overwritten.
+
+        TODO(scott) we could check rbcommons to see if the pending review
+        is still live and automatically remove it if so.
+
+        Returns:
+            A tuple (True,True) if the create can proceed and the
+            review can be overwritten.
+            A tuple (True,False) if the create can proceed and
+            the review should not be overwritten.
+            A tuple (False,) if the create should be aborted."""
+        review_num = self.get_review_number()
+        if review_num == -1:
+            return (True, True)
+        print('Warning, found a previous review that was created in this ' \
+                'directory, but not removed.')
+        print('Previous review number is {0}.'.format(review_num))
+        print('  y = overwrite')
+        print('  s = do not overwrite')
+        print('  anything else aborts')
+        choice = raw_input(' ')
+        if choice == 'y':
+            return (True, True)
+        elif choice == 's':
+            return (True, False)
+        return (False,)
+
+    def _save_parent_info(self):
+        """Saves the current branch and a couple of commit logs."""
+        parent_file = os.path.join(self._root_dir, 'gitparent')
+        with open(parent_file, 'w') as file_handle:
+            subprocess.check_call(['git', 'branch'], stdout=file_handle)
+        with open(parent_file, 'a+') as file_handle:
+            subprocess.check_call(['git', 'log', '-n', '2'], stdout=file_handle)
+
+    def save(self, content):
+        """Saves the review info."""
+        with open(self._review_info_file, 'w') as file_handle:
+            file_handle.write(content)
+        self._save_parent_info()
+
+    def remove(self):
+        """Removes the review info."""
+        if os.path.isfile(self._review_info_file):
+            os.unlink(self._review_info_file)
+
+
+def new_review_info():
+    """Create a ReviewInfo instance."""
+    return ReviewInfo(_pdreview_dir)
+
+
+def get_review_num_from_args(args):
+    """Given args, try to determine the review number."""
+    review_num = args.review
+    if review_num == -1:
+        review_info = new_review_info()
+        review_num = review_info.get_review_number()
+    if review_num == -1:
+        print "Cannot determine review number."
+        print "Use 'pdreview list' to see a list of pending reviews."
+        sys.exit(0)
+    return review_num
+
+
+def read_cookie():
+    """Reads the users review board cookie.
+
+    Returns:
+        The cookie value that can be passed in review board APIs."""
+
+    path = os.path.expanduser('~/.post-review-cookies.txt')
+    with open(path, 'r') as file:
+        content = file.read()
+    m = re.search("(rbsessionid\t.*)[\t\n$]", content)
+    try:
+        cookie = m.group(1).replace('\t', '=')
+    except IndexError, e:
+        raise IOError("Can't find rbsessionid in " + path)
+    return cookie
+
+
+def make_diff(find_copies):
+    """Makes a diff file and returns the subsequent diff name.
+
+    Args:
+        find_copies: True to detect copied and renamed files.
+    Returns:
+        The path to the diff, or None if no diffs were found."""
+    assert_git_tree()
+    stage_uncached_changes_for_commit()
+    assert_no_uncached_diffs()
+    diff_file = capture_git_cached_diffs(find_copies)
+    if os.path.getsize(diff_file) > 0:
+        print "diff_file = ", diff_file
+        return diff_file
+    else:
+        print "diff_file = {} is empty.".format(diff_file)
+        os.unlink(fname)
+        return None
+
+
+def create_review(args):
+    """Creates a new review request."""
+    # Even though we don't use the cookie, the review will fail if the cookie
+    # does not exist.
+    try:
+        read_cookie()
+    except IOError:
+        print "Couldn't read review board cookie"
+        print "Try running create-review first"
+        return 1
+    review_info = new_review_info()
+    proceed = review_info.check_existing_review()
+    if not proceed[0]:
+        print "Aborting at user's request"
+        return 0
+    fname = make_diff(args.find_copies)
+    if fname is None:
+        return 0
+    result = post_review(fname)
+    # Removes the file if the posting was successful.
+    os.unlink(fname)
+    if proceed[1]:
+        review_info.save(result)
+    return 0
+
+
+def snapshot_review(args):
+    """Updates a review, but does not submit it to reviewers."""
+    review_num = get_review_num_from_args(args)
+    fname = make_diff(args.find_copies)
+    if fname is None:
+        return 0
+    post_snapshot(fname, review_num)
+    # Removes the file if the posting was successful.
+    os.unlink(fname)
+    return 0
+
+
+def parse_json_single_result(json_summary):
+    """Parse the json returned from the review board API.
+
+    This parses the result of a single review fetch.
+
+    Returns:
+        The tuple of summary and description fields. """
+
+    json_obj = json.loads(json_summary)
+    status = json_obj["stat"]
+    if status != "ok":
+        raise IOError("Status is not ok: " + status)
+    rr = json_obj["review_request"]
+    summary = rr["summary"].strip()
+    description = rr["description"].strip()
+    lines = textwrap.wrap(description, 80)
+    description = "\n".join(lines)
+    return (summary, description)
+
+
+def parse_json_multi_results(json_summary):
+    """Parse the json returned from the review board API.
+
+    This parses the result of a multi-review fetch.
+    Returns:
+        A list of tuples of review id, submitter, and summary fields."""
+
+    json_obj = json.loads(json_summary)
+    status = json_obj["stat"]
+    if status != "ok":
+        raise IOError("Status is not ok: " + status)
+    rrs = json_obj["review_requests"]
+    reviews = []
+    for rr in rrs:
+        idnum = rr["id"]
+        submitter = rr["links"]["submitter"]["title"].strip()
+        summary = rr["summary"].strip()
+        reviews.append((idnum, submitter, summary))
+    return reviews
+
+
+def get_api_url(review_num, remaining_path=''):
+    """Gets the API URL for a review number. """
+    return "https://rbcommons.com/s/pepperdata/api/review-requests/{0}/{1}" \
+            .format(review_num, remaining_path)
+
+
+def fetch_review(url, cookie):
+    """Makes call to review board API.
+
+    Returns:
+        The json encoded summary of the given api uri. """
+
+    req = urllib2.Request(url)
+    req.add_header('Cookie', cookie)
+    r = urllib2.urlopen(req)
+    return r.read()
+
+
+def mark_submitted(url, cookie, description=None):
+    """Marks a review as submitted.
+
+    Returns:
+        The json encoded result of the request. """
+
+    data = 'status=submitted'
+    if description:
+        print "Setting description to: {0}".format(description)
+        data += ';description={0}'.format(description)
+    req = urllib2.Request(url, data)
+    req.add_header('Cookie', cookie)
+    req.get_method = lambda : 'PUT'
+    r = urllib2.urlopen(req)
+    return r.read()
+
+
+def mark(args):
+    """mark the current review submitted."""
+    assert_git_tree()
+    review_num = get_review_num_from_args(args)
+    print "Marking the review " + review_num
+    try:
+        cookie = read_cookie()
+        url = get_api_url(review_num)
+        description = get_git_last_log()
+        mark_submitted(url, cookie, description)
+        review_info = new_review_info()
+        review_info.remove()
+    except IOError, e:
+        print "Error: " + str(e)
+        return 1
+    return 0
+
+
+def get_editor():
+    """Tries to get editor from env variables.
+
+    Returns:
+        Prefered editor if found, otherwise, vim."""
+
+    editor = os.environ.get('VISUAL')
+    if editor != None:
+        return editor
+    editor = os.environ.get('EDITOR')
+    if editor != None:
+        return editor;
+    return "vim"
+
+
+def get_git_last_log():
+    """Return the most recent last log."""
+    p = subprocess.Popen(["git", "log", "--shortstat", "--format=oneline",
+                          "-n", "1"], stdout=subprocess.PIPE)
+    (out, _) = p.communicate()
+    if p.returncode != 0:
+        raise IOError("Can't get the last log.")
+    return "changeset: {0}".format(out.strip())
+
+def commit(args):
+    """Coordinates all the events in commit.
+
+    Retrieving the summary, allowing user to see/edit it, then commit with ask.
+    """
+    assert_git_tree()
+    review_num = get_review_num_from_args(args)
+    print "Using description and summary from review " + review_num
+    (file_handle, fname) = (None, None)
+    rc = 0
+    try:
+        cookie = read_cookie()
+        url = get_api_url(review_num)
+        review = fetch_review(url, cookie)
+        (summary, description) = parse_json_single_result(review)
+        link = '(https://rbcommons.com/s/pepperdata/r/{0})'.format(review_num)
+        msg = summary + " " + link + '\n' + description
+        (file_handle, fname) = tempfile.mkstemp(prefix='pdreview-commit-',
+                suffix='.txt')
+        os.write(file_handle, msg)
+        os.close(file_handle)
+        file_handle = None
+        done = False
+        while not done:
+            print "Setting commit message to:\n"
+            with open(fname, 'r') as commit_message_file:
+                content = commit_message_file.read()
+            print content
+            print "\n"
+            choice = raw_input("OK to submit?  y=submit e=edit q=quit ")
+            if choice.lower() == 'e':
+                editor = get_editor()
+                rc = subprocess.call(editor + " " + fname, shell=True)
+                if rc != 0:
+                    raise IOError("Can't edit summary, editor returned " + rc);
+                continue
+            if args.dryrun:
+                print "Dry run done"
+                done = True
+                break
+            if choice.lower() == 'y':
+                stage_uncached_changes_for_commit()
+                if not args.skip_commit:
+                    print "Committing"
+                    assert_no_uncached_diffs()
+                    assert_no_incoming_changes()
+                    rc = subprocess.call("git commit --file " + fname,
+                                         shell=True)
+                else:
+                    print "Pushing without commit"
+
+                should_push = not args.nopush
+                if rc == 0 and not has_reviewboardrc():
+                    choice = raw_input("OK to push?  y=push n=nopush ")
+                    should_push = choice.lower() == 'y'
+                if rc == 0 and should_push:
+                    print "Pushing"
+                    assert_no_uncached_diffs()
+                    rc = subprocess.call("git push", shell=True)
+
+                should_mark_submitted = True
+                if rc == 0 and not has_reviewboardrc():
+                    choice = raw_input("OK to mark submitted?  y=mark n=nomark ")
+                    should_mark_submitted = choice.lower() == 'y'
+                if rc == 0 and should_mark_submitted:
+                    print "Marking as submitted"
+                    description = get_git_last_log()
+                    mark_submitted(url, cookie, description)
+                    review_info = new_review_info()
+                    review_info.remove()
+                done = True
+            else:
+                print "Skipping commit"
+                done = True
+    except IOError, e:
+        print "Error: " + str(e)
+        rc = 2
+    finally:
+        if file_handle != None:
+            print file_handle
+            os.close(file_handle)
+        if fname != None:
+            os.unlink(fname)
+    return rc
+
+
+def print_available_reviews(ignored=None):
+    """Prints a list of pending reviews to stdout."""
+    cookie = read_cookie()
+    uri = "https://rbcommons.com/s/pepperdata/api/review-requests/" \
+            "?status=pending"
+    json_result = fetch_review(uri, cookie)
+    reviews = parse_json_multi_results(json_result)
+    for review in sorted(reviews):
+        print "{0:4} {1:10} {2} ".format(review[0], review[1], review[2])
+
+
+def _revert_cached_diffs():
+    """git reset HEAD ."""
+    cmd = ["git", "reset", "HEAD", "."]
+    print "Running '" + " ".join(cmd) + "'"
+    p = subprocess.Popen(cmd, stdout=PIPE, stderr=None)
+    p.communicate()
+    return p.returncode == 0
+
+
+def _revert_uncached_diffs():
+    """git checkout -- ."""
+    cmd = ["git", "checkout", "--", "."]
+    print "Running '" + " ".join(cmd) + "'"
+    p = subprocess.Popen(cmd, stdout=PIPE, stderr=None)
+    p.communicate()
+    return p.returncode == 0
+
+
+def _delete_files_not_in_repository_but_eclipse_stuff():
+    """git clean -f -d -x -e .classpath -e .pdreview -e .project -e .settings"""
+    cmd = ["git", "clean", "-f", "-d", "-x", "-e", ".classpath",
+           "-e", ".pdreview", "-e", ".project", "-e", ".settings",
+           "-e", ".idea", "-e",  "*.iml"]
+    print "Running '" + " ".join(cmd) + "'"
+    p = subprocess.Popen(cmd, stdout=PIPE, stderr=None)
+    p.communicate()
+    return p.returncode == 0
+
+
+def clean(args):
+    """Clean git repository."""
+    assert_git_tree()
+    _revert_cached_diffs()
+    _revert_uncached_diffs()
+    _delete_files_not_in_repository_but_eclipse_stuff()
+
+
+def main(argv = None):
+    """Main function that can be called interactively.
+
+    Returns:
+        Value to return to shell. """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--review-dir',
+            default=None, help="Review directory to create .pdreview.")
+
+    subparsers = parser.add_subparsers(title='actions',
+            description='Valid actions', help='additional help')
+
+    create_parser = subparsers.add_parser('create', help='Create a new review')
+    create_parser.add_argument('--find-copies', action='store_true',
+            dest='find_copies', default=False, help="Find copies and renames.")
+    create_parser.set_defaults(func=create_review)
+
+    snapshot_parser = subparsers.add_parser('snapshot',
+            help='Update a review but do not submit')
+    snapshot_parser.add_argument('--find-copies', action='store_true',
+            dest='find_copies', default=False, help="Find copies and renames.")
+    snapshot_parser.add_argument('review', metavar='CL', type=int, nargs='?',
+            help="Review id from rbcommons", default=-1)
+    snapshot_parser.set_defaults(func=snapshot_review)
+
+    commit_parser = subparsers.add_parser('commit', help='Commit a change')
+    commit_parser.add_argument('-d', '--dry', action='store_true',
+            dest='dryrun', default=False, help="Only print what would happen")
+    commit_parser.add_argument('-n', '--nopush', action='store_true',
+            dest='nopush', default=False,
+            help="Refrain from pushing after commit")
+    commit_parser.add_argument('--skip-commit', action='store_true',
+            dest='skip_commit', default=False,
+            help="Push without committing changes.")
+    commit_parser.add_argument('review', metavar='CL', type=int, nargs='?',
+            help="Review id from rbcommons", default=-1)
+    commit_parser.set_defaults(func=commit)
+
+    mark_parser = subparsers.add_parser('mark', help='Mark a change as submitted')
+    mark_parser.add_argument('review', metavar='CL', type=int, nargs='?',
+            help="Review id from rbcommons", default=-1)
+    mark_parser.set_defaults(func=mark)
+
+    clean_parser = subparsers.add_parser('clean', help='Commit a change')
+    clean_parser.add_argument('-d', '--dry', action='store_true',
+            dest='dryrun', default=False, help="Only print what would happen")
+    clean_parser.set_defaults(func=clean)
+
+    list_parser = subparsers.add_parser('list', help='List pending changes')
+    list_parser.set_defaults(func=print_available_reviews)
+
+    args = parser.parse_args(argv)
+    set_reviewboardrc()
+    set_review_server()
+    if len(_server) > 0:
+        print "review board server arg = " + str(_server)
+    set_review_dir_from_args(args)
+    print "pdreview root_dir = " + _pdreview_dir
+    return(args.func(args))
+
+
+if __name__ == "__main__":
+    sys.exit(main())
