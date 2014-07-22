@@ -145,10 +145,10 @@ asynchbase_LIBADD := \
 	$(PROTOBUF)	\
 
 test_SOURCES := \
-	test/Common.java	\
-	test/Test.java	\
-	test/TestIncrementCoalescing.java	\
-	test/TestIntegration.java	\
+	test/test/Common.java	\
+	test/test/Test.java	\
+	test/test/TestIncrementCoalescing.java	\
+	test/test/TestIntegration.java	\
 
 unittest_SRC := \
 	test/BaseTestHBaseClient.java	\
