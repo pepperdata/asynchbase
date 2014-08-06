@@ -199,6 +199,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     }
   };
 
+  // Hash code to avoid re-calculating hash for debug messages.
+  private final String debug_hash_code;
   /**
    * Semaphore used to rate-limit META lookups and prevent "META storms".
    * <p>
@@ -214,6 +216,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
    */
   public RegionClient(final HBaseClient hbase_client) {
     this.hbase_client = hbase_client;
+    this.debug_hash_code = "@" + hashCode();
   }
 
   /**
@@ -431,7 +434,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     if (chancopy == null) {
       return Deferred.fromResult(null);
     }
-    LOG.debug("Shutdown requested, chan={}", chancopy);
+    LOG.debug("{} Shutdown requested, chan={}", debug_hash_code, chancopy);
     if (chancopy.isConnected()) {
       Channels.disconnect(chancopy);   // ... this is going to set it to null.
       // At this point, all in-flight RPCs are going to be failed.
@@ -522,6 +525,13 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
       this.chan = chan;
     }
 
+    /**
+     * Handles the response of {@link #helloRpc}.
+     * @return null when it re-tried for a version mismatch. A version
+     * object if it was successful.
+     * @throws an exception If there was an error that we cannot retry. It
+     * includes ServerNotRunningYetExceptio, and NotServingRegionException.
+     */
     public Long call(final Object response) throws Exception {
       if (response instanceof VersionMismatchException) {
         if (server_version == SERVER_VERSION_UNKNWON) {
@@ -529,14 +539,16 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
           // running HBase 0.92 or above, but using a pre-0.92 handshake.  So
           // we know we have to handshake differently.
           server_version = SERVER_VERSION_092_OR_ABOVE;
+          LOG.info("{} ProtocolVersionCB: retry helloRpc with header092",
+                   RegionClient.this.debug_hash_code);
           helloRpc(chan, header092());
+          return null;
         } else {
           // We get here if the server refused our 0.92-style handshake.  This
           // must be a future version of HBase that broke compatibility again,
           // and we don't know how to talk to it, so give up here.
           throw (VersionMismatchException) response;
         }
-        return null;
       } else if (!(response instanceof Long)) {
         if (response instanceof Exception) {  // If it's already an exception,
           throw (Exception) response;         // just re-throw it as-is.
@@ -564,6 +576,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     // The following line will make this client no longer queue incoming
     // RPCs, as we're now ready to communicate with the server.
     this.chan = chan;  // Volatile write.
+    LOG.debug("becomeReady {}", this);
     sendQueuedRpcs();
   }
 
@@ -805,8 +818,9 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
           return e;  // Can't recover from this error, let it propagate.
         }
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Multi-action request failed, retrying each of the "
-                    + request.size() + " RPCs individually.", e);
+          LOG.debug(debug_hash_code + " Multi-action request failed, " +
+                    "retrying each of the " + request.size() +
+                    " RPCs individually.", e);
         }
         for (final BatchableRpc rpc : request.batch()) {
           retryEdit(rpc, (RecoverableException) e);
@@ -931,7 +945,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
       sendRpc(rpc);
       return;
     }
-    LOG.debug("RPC queued: {}", rpc);
+    LOG.debug("{} RPC queued: {}", debug_hash_code, rpc);
   }
 
   /**
@@ -970,12 +984,15 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     if (!hbase_client.has_root) {
       header = header095();
       Channels.write(chan, header);
+      LOG.debug("{} Connected to HBase 0.95 and up.", debug_hash_code);
       becomeReady(chan, SERVER_VERSION_095_OR_ABOVE);
       return;
     } else if (System.getProperty("org.hbase.async.cdh3b3") != null) {
       header = headerCDH3b3();
+      LOG.debug("{} Connected to CDH3b3.", debug_hash_code);
     } else {
       header = header090();
+      LOG.debug("{} Connected to HBase0.94 and down.", debug_hash_code);
     }
     helloRpc(chan, header);
   }
@@ -994,7 +1011,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     }
     if (rpcs != null) {
       for (final HBaseRpc rpc : rpcs) {
-        LOG.debug("Executing RPC queued: {}", rpc);
+        LOG.debug("{} Executing RPC queued: {}", debug_hash_code, rpc);
         sendRpc(rpc);
       }
     }
@@ -1003,6 +1020,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
   @Override
   public void channelDisconnected(final ChannelHandlerContext ctx,
                                   final ChannelStateEvent e) throws Exception {
+    LOG.debug("{} channelDisconnected: {}", debug_hash_code, chan);
     chan = null;
     super.channelDisconnected(ctx, e);  // Let the ReplayingDecoder cleanup.
     cleanup(e.getChannel());
@@ -1011,6 +1029,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
   @Override
   public void channelClosed(final ChannelHandlerContext ctx,
                             final ChannelStateEvent e) {
+    LOG.debug("{} channelClosed: {}", debug_hash_code, chan);
     chan = null;
     // No need to call super.channelClosed() because we already called
     // super.channelDisconnected().  If we get here without getting a
@@ -1074,9 +1093,7 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
   @Override
   public void handleUpstream(final ChannelHandlerContext ctx,
                              final ChannelEvent e) throws Exception {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(e.toString());
-    }
+    LOG.debug("{} handleUpstream {}", debug_hash_code, e);
     super.handleUpstream(ctx, e);
   }
 
@@ -1087,10 +1104,11 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     final Channel c = event.getChannel();
 
     if (e instanceof RejectedExecutionException) {
-      LOG.warn("RPC rejected by the executor,"
+      LOG.warn(debug_hash_code + " RPC rejected by the executor,"
                + " ignore this if we're shutting down", e);
     } else {
-      LOG.error("Unexpected exception from downstream on " + c, e);
+      LOG.error(debug_hash_code + " Unexpected exception from downstream on " +
+                c, e);
     }
     if (c.isOpen()) {
       Channels.close(c);  // Will trigger channelClosed(), which will cleanup()
@@ -1206,7 +1224,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
         payload.setBytes(10, method);                   // method.length bytes
       }
     } catch (Exception e) {
-      LOG.error("Uncaught exception while serializing RPC: " + rpc, e);
+      LOG.error(debug_hash_code + " Uncaught exception while serializing RPC: " +
+                rpc, e);
       rpc.callback(e);  // Make the RPC fail with the exception.
       return null;
     }
@@ -1218,8 +1237,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     // fewer, bigger TCP packets, and make better use of the network.
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug(chan + " Sending RPC #" + rpcid + ", payload=" + payload + ' '
-                + Bytes.pretty(payload));
+      LOG.debug(debug_hash_code + " " + chan + " Sending RPC #" + rpcid +
+                ", payload=" + payload + ' ' + Bytes.pretty(payload));
     }
     {
       final HBaseRpc oldrpc = rpcs_inflight.put(rpcid, rpc);
@@ -1277,8 +1296,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     final HBaseRpc rpc = rpcs_inflight.get(rpcid);
 
     if (rpc == null) {
-      final String msg = "Invalid rpcid: " + rpcid + " found in "
-        + buf + '=' + Bytes.pretty(buf);
+      final String msg = debug_hash_code + " Invalid rpcid: " + rpcid +
+          " found in " + buf + '=' + Bytes.pretty(buf);
       LOG.error(msg);
       // The problem here is that we don't know which Deferred corresponds to
       // this RPC, since we don't have a valid ID.  So we're hopeless, we'll
@@ -1312,13 +1331,13 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
         decoded = deserialize(buf, rpc);
       }
     } catch (RuntimeException e) {
-      LOG.error("Uncaught error during de-serialization of " + rpc
-                + ", rpcid=" + rpcid);
+      LOG.error(debug_hash_code + " Uncaught error during de-serialization of " +
+                rpc + ", rpcid=" + rpcid);
       throw e;
     }
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("rpcid=" + rpcid
+      LOG.debug(debug_hash_code + " rpcid=" + rpcid
                 + ", response size=" + (buf.readerIndex() - rdx) + " bytes"
                 + ", " + actualReadableBytes() + " readable bytes left"
                 + ", rpc=" + rpc);
@@ -1342,8 +1361,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
     try {
       rpc.callback(decoded);
     } catch (Exception e) {
-      LOG.error("Unexpected exception while handling RPC #" + rpcid
-                + ", rpc=" + rpc + ", buf=" + Bytes.pretty(buf), e);
+      LOG.error(debug_hash_code + " Unexpected exception while handling RPC #" +
+                rpcid + ", rpc=" + rpc + ", buf=" + Bytes.pretty(buf), e);
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug("------------------<< LEAVING  DECODE <<------------------"
@@ -1435,6 +1454,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
   private static final HBaseException makeException(final HBaseRpc request,
                                                     final String type,
                                                     final String msg) {
+    LOG.debug("makeException: type = {}, msg = {}, request = {}",
+              type, msg, request);
     final HBaseException exc = REMOTE_EXCEPTION_TYPES.get(type);
     if (exc != null) {
       return exc.make(msg, request);
@@ -1661,7 +1682,8 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
         return decode(ctx, chan, buf, unused);
       } finally {
         if (buf.readable()) {
-          LOG.error("After decoding the last message on " + chan
+          LOG.error(debug_hash_code + " After decoding the last message on "
+                    + chan
                     + ", there was still some undecoded bytes in the channel's"
                     + " buffer (which are going to be lost): "
                     + buf + '=' + Bytes.pretty(buf));
@@ -1826,13 +1848,25 @@ final class RegionClient extends ReplayingDecoder<VoidEnum> {
    * This message is immediately followed by a {@link GetProtocolVersionRequest}
    * so we can learn what version the server is running to be able to talk to
    * it the way it expects.
-   * @param chan The channel connected to the server we need to handshake.
+   * @param new_chan The channel connected to the server we need to handshake.
    * @param header The header to use for the handshake.
    */
-  private void helloRpc(final Channel chan, final ChannelBuffer header) {
+  private void helloRpc(final Channel new_chan, final ChannelBuffer header) {
+    LOG.debug("{} helloRpc for the channel: {}", debug_hash_code, new_chan);
+    Callback<Object, Exception> errorback = new Callback<Object, Exception>() {
+
+      @Override
+      public Object call(final Exception e) throws Exception {
+        LOG.info(debug_hash_code + " helloRpc failed. Closing the channel:" +
+                 new_chan, e);
+        Channels.close(new_chan);
+        return e;
+      }
+    };
     final GetProtocolVersionRequest rpc = new GetProtocolVersionRequest();
-    rpc.getDeferred().addBoth(new ProtocolVersionCB(chan));
-    Channels.write(chan, ChannelBuffers.wrappedBuffer(header, encode(rpc)));
+    rpc.getDeferred().addBoth(new ProtocolVersionCB(new_chan))
+                     .addErrback(errorback);
+    Channels.write(new_chan, ChannelBuffers.wrappedBuffer(header, encode(rpc)));
   }
 
 }
