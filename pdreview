@@ -1,7 +1,7 @@
 #!/usr/bin/python -u
 """Copyright (C) 2013 Pepperdata Inc. - All rights reserved.
 
-pdreview - Tool to help GitHub code review.
+pdreview_git_tools - Git helper functions for code review.
 
 """
 
@@ -21,15 +21,15 @@ import random
 
 
 # TODO(jesse): Make --find-copies optionally available.
-GIT_DIFF_FIND_COPY_CACHED = ["git", "diff", "--find-copies", "--cached",
+GIT_DIFF_FIND_COPY_CACHED = ["git", "diff", "--find-copies-harder", "--cached",
                              "--full-index"]
 GIT_DIFF_CACHED = ["git", "diff", "--cached", "--full-index"]
-GIT_DIFF_UNCACHED = ["git", "diff", "--full-index"]
+GIT_DIFF_UNCACHED = ["git", "diff", "--full-index", "--ignore-submodules"]
 GIT_ADD_UNCACHED = ["git", "add", "--all"]
 GIT_FETCH_DRY_RUN = ["git", "fetch", "--dry-run", "--all"]
 PD_SERVER = "--server=https://rbcommons.com/s/pepperdata/"
-POST_REVIEW_TECH = ["post-review", "-o", "--target-groups=tech"]
-POST_REVIEW_SNAPSHOT = ["post-review", "--diff-only"]
+RBT_REVIEW_TECH = ["rbt", "post", "-o", "--target-groups=tech"]
+RBT_REVIEW_SNAPSHOT = ["rbt", "post", "-o"]
 
 
 # review board server address.
@@ -94,7 +94,7 @@ def cmd_create_review(diff_file):
     Returns:
         A list of strings for the post command and its arguments.
     """
-    return POST_REVIEW_TECH + _server + \
+    return RBT_REVIEW_TECH + _server + \
            ["--diff-filename={0}".format(diff_file)]
 
 
@@ -104,7 +104,7 @@ def cmd_post_snapshot(diff_file, review_id):
     Returns:
         A list of strings for the post command and its arguments.
     """
-    return POST_REVIEW_SNAPSHOT + _server + \
+    return RBT_REVIEW_SNAPSHOT + _server + \
            ["-r", str(review_id)] + ["--diff-filename={0}".format(diff_file)]
 
 
@@ -288,7 +288,7 @@ def post_review(diff_file):
         ValueError if the diff file is empty or doesn't exist.
     """
     _assert_diff_file(diff_file)
-    # post-review -o --target-groups=tech "--diff-filename=${DIFF_FILE}"
+    # rbt post -o --target-groups=tech "--diff-filename=${DIFF_FILE}"
     cmd = cmd_create_review(diff_file)
     try:
         return subprocess.check_output(cmd)
@@ -304,7 +304,7 @@ def post_snapshot(diff_file, review_id):
         ValueError if the diff file is empty or doesn't exist.
     """
     _assert_diff_file(diff_file)
-    # post-review --diff-only -r "${REVIEW_ID}" "--diff-filename=${DIFF_FILE}"
+    # rbt post -r "${REVIEW_ID}" "--diff-filename=${DIFF_FILE}"
     cmd = cmd_post_snapshot(diff_file, review_id)
     rc = subprocess.call(cmd, stdout=None, stderr=None)
     if rc != 0:
@@ -421,15 +421,18 @@ def read_cookie():
 
     Returns:
         The cookie value that can be passed in review board APIs."""
-
-    path = os.path.expanduser('~/.post-review-cookies.txt')
+    path = os.path.expanduser('~/.rbtools-cookies')
+    error = ("Can't find rbsessionid in {}.  Try running 'rbt status' to " +
+             "regenerate cookie.").format(path)
+    if not os.path.isfile(path):
+        raise IOError(error)
     with open(path, 'r') as file:
         content = file.read()
     m = re.search("(rbsessionid\t.*)[\t\n$]", content)
     try:
         cookie = m.group(1).replace('\t', '=')
     except IndexError, e:
-        raise IOError("Can't find rbsessionid in " + path)
+        raise IOError(error)
     return cookie
 
 
@@ -459,8 +462,8 @@ def create_review(args):
     # does not exist.
     try:
         read_cookie()
-    except IOError:
-        print "Couldn't read review board cookie"
+    except IOError, e:
+        print "Couldn't read review board cookie - {}".format(e)
         print "Try running create-review first"
         return 1
     review_info = new_review_info()
@@ -468,7 +471,7 @@ def create_review(args):
     if not proceed[0]:
         print "Aborting at user's request"
         return 0
-    fname = make_diff(args.find_copies)
+    fname = make_diff(not args.no_find_copies)
     if fname is None:
         return 0
     result = post_review(fname)
@@ -482,7 +485,7 @@ def create_review(args):
 def snapshot_review(args):
     """Updates a review, but does not submit it to reviewers."""
     review_num = get_review_num_from_args(args)
-    fname = make_diff(args.find_copies)
+    fname = make_diff(not args.no_find_copies)
     if fname is None:
         return 0
     post_snapshot(fname, review_num)
@@ -756,14 +759,14 @@ def main(argv = None):
             description='Valid actions', help='additional help')
 
     create_parser = subparsers.add_parser('create', help='Create a new review')
-    create_parser.add_argument('--find-copies', action='store_true',
-            dest='find_copies', default=False, help="Find copies and renames.")
+    create_parser.add_argument('--no-find-copies', action='store_true',
+            help="Do not find copies and renames.")
     create_parser.set_defaults(func=create_review)
 
     snapshot_parser = subparsers.add_parser('snapshot',
             help='Update a review but do not submit')
-    snapshot_parser.add_argument('--find-copies', action='store_true',
-            dest='find_copies', default=False, help="Find copies and renames.")
+    snapshot_parser.add_argument('--no-find-copies', action='store_true',
+            help="Do not find copies and renames.")
     snapshot_parser.add_argument('review', metavar='CL', type=int, nargs='?',
             help="Review id from rbcommons", default=-1)
     snapshot_parser.set_defaults(func=snapshot_review)
