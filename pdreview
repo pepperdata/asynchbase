@@ -43,9 +43,16 @@ _pdreview_dir = None
 
 
 def set_reviewboardrc():
-    """Sets the .reviewboardrc path if exists."""
+    """Sets the .reviewboardrc path if exists.
+
+    :raise ValueError: if ~/.reviewboardrc exists.
+    """
     global _reviewboardrc
 
+    home = os.path.expanduser("~")
+    if os.path.isfile(home + "/.reviewboardrc"):
+        print "Error: Please remove {}/.reviewboardrc".format(home)
+        raise ValueError("We don't allow ~/.reviewboardrc")
     reviewboardrc_path = get_git_root() + "/.reviewboardrc"
     if os.path.isfile(reviewboardrc_path):
         print "exist reviewboardrc_path=", reviewboardrc_path
