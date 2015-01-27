@@ -68,8 +68,10 @@ import org.hbase.async.ColumnPrefixFilter;
 import org.hbase.async.ColumnRangeFilter;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.FilterList;
+import org.hbase.async.FirstKeyOnlyFilter;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyOnlyFilter;
 import org.hbase.async.KeyRegexpFilter;
 import org.hbase.async.KeyValue;
 import org.hbase.async.NoSuchColumnFamilyException;
@@ -693,6 +695,86 @@ final public class TestIntegration {
     kvs = rows.get(1);
     assertSizeIs(1, kvs);
     assertEq("v3", kvs.get(0).value());
+  }
+
+  /** First key only filter test.  */
+  @Test
+  public void firstKeyOnlyFilter() throws Exception {
+    client.setFlushInterval(FAST_FLUSH);
+    final PutRequest put1 = new PutRequest(table, "fkof1", family, "qa1", "v1");
+    final PutRequest put2 = new PutRequest(table, "fkof1", family, "qa2", "v2");
+    final PutRequest put3 = new PutRequest(table, "fkof2", family, "qa3", "v3");
+    final PutRequest put4 = new PutRequest(table, "fkof2", family, "qa4", "v4");
+    Deferred.group(Deferred.group(client.put(put1), client.put(put2)),
+                   Deferred.group(client.put(put3), client.put(put4))).join();
+    final Scanner scanner = client.newScanner(table);
+    scanner.setFamily(family);
+    scanner.setStartKey("fkof1");
+    scanner.setStopKey("fkof3");
+    scanner.setFilter(new FirstKeyOnlyFilter());
+    final ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+    assertSizeIs(2, rows);
+    ArrayList<KeyValue> kvs = rows.get(0);
+    assertSizeIs(1, kvs);
+    assertEq("v1", kvs.get(0).value());
+    kvs = rows.get(1);
+    assertSizeIs(1, kvs);
+    assertEq("v3", kvs.get(0).value());
+  }
+
+  /** Key only filter Test */
+  @Test
+  public void keyOnlyFilter() throws Exception {
+    client.setFlushInterval(FAST_FLUSH);
+    final PutRequest put1 = new PutRequest(table, "kof1", family, "qa1", "v1");
+    final PutRequest put2 = new PutRequest(table, "kof1", family, "qa2", "v2");
+    final PutRequest put3 = new PutRequest(table, "kof2", family, "qa3", "v3");
+    final PutRequest put4 = new PutRequest(table, "kof2", family, "qa4", "v4");
+    Deferred.group(Deferred.group(client.put(put1), client.put(put2)),
+                   Deferred.group(client.put(put3), client.put(put4))).join();
+    final Scanner scanner = client.newScanner(table);
+    scanner.setFamily(family);
+    scanner.setStartKey("kof1");
+    scanner.setStopKey("kof3");
+    scanner.setFilter(new KeyOnlyFilter());
+    final ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+    assertSizeIs(2, rows);
+    ArrayList<KeyValue> kvs = rows.get(0);
+    assertSizeIs(2, kvs);
+    assertEq("", kvs.get(0).value());
+    assertEq("", kvs.get(1).value());
+    kvs = rows.get(1);
+    assertSizeIs(2, kvs);
+    assertEq("", kvs.get(0).value());
+    assertEq("", kvs.get(1).value());
+  }
+
+  /** Key only filter with length as value Test */
+  @Test
+  public void keyOnlyFilterLenAsValue() throws Exception {
+    client.setFlushInterval(FAST_FLUSH);
+    final PutRequest put1 = new PutRequest(table, "k1", family, "q1", "v1");
+    final PutRequest put2 = new PutRequest(table, "k1", family, "q2", "v23");
+    final PutRequest put3 = new PutRequest(table, "k2", family, "q3", "v3100");
+    final PutRequest put4 = new PutRequest(table, "k2", family, "q4", "v400");
+    Deferred.group(Deferred.group(client.put(put1), client.put(put2)),
+                   Deferred.group(client.put(put3), client.put(put4))).join();
+    final Scanner scanner = client.newScanner(table);
+    scanner.setFamily(family);
+    scanner.setStartKey("k1");
+    scanner.setStopKey("k3");
+    // KeyOnlyFilter with length as value set to true
+    scanner.setFilter(new KeyOnlyFilter(true));
+    final ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+    assertSizeIs(2, rows);
+    ArrayList<KeyValue> kvs = rows.get(0);
+    assertSizeIs(2, kvs);
+    assertEquals(2, Bytes.getInt(kvs.get(0).value()));
+    assertEquals(3, Bytes.getInt(kvs.get(1).value()));
+    kvs = rows.get(1);
+    assertSizeIs(2, kvs);
+    assertEquals(5, Bytes.getInt(kvs.get(0).value()));
+    assertEquals(4, Bytes.getInt(kvs.get(1).value()));
   }
 
   /** Simple column filter list tests.  */
