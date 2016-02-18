@@ -37,6 +37,7 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.JUnitCore;
@@ -92,7 +93,7 @@ import org.hbase.async.Common;
  *
  * Requires a locally running HBase cluster.
  */
-
+@Ignore // ignore for test runners
 final public class TestIntegration {
 
   private static final Logger LOG = Common.logger(TestIntegration.class);
