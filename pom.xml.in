@@ -5,7 +5,7 @@
 
   <groupId>org.hbase</groupId>
   <artifactId>asynchbase</artifactId>
-  <version>@spec_version@-pepperdata-SNAPSHOT</version>
+  <version>@spec_version@-pepperdata</version>
   <name>@spec_title@</name>
   <organization>
     <name>@spec_vendor@</name>
@@ -54,6 +54,18 @@
   <inceptionYear>2010</inceptionYear>
 
   <packaging>jar</packaging>
+
+  <profiles>
+    <profile>
+      <id>java8-doclint-disabled</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <properties>
+        <javadoc.opts>-Xdoclint:none</javadoc.opts>
+      </properties>
+    </profile>
+  </profiles>
 
   <build>
     <sourceDirectory>.mvn-compat/src/main/java</sourceDirectory>
@@ -121,10 +133,28 @@
         <configuration>
           <quiet>true</quiet>
           <validateLinks>true</validateLinks>
+          <additionalparam>${javadoc.opts}</additionalparam>
           <bottom>
             Copyright &#169; {inceptionYear}-{currentYear},
             ${project.organization.name}
           </bottom>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-site-plugin</artifactId>
+        <version>3.3</version>
+        <configuration>
+          <reportPlugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-javadoc-plugin</artifactId>
+              <configuration>
+                <additionalparam>${javadoc.opts}</additionalparam>
+              </configuration>
+            </plugin>
+          </reportPlugins>
         </configuration>
       </plugin>
 
