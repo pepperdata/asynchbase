@@ -40,7 +40,8 @@ proto_builddir := $(top_builddir)/protobuf
 spec_title := Asynchronous HBase Client
 spec_vendor := The Async HBase Authors
 # Semantic Versioning (see http://semver.org/).
-spec_version := 1.7.2
+# NOTE(ankan): The following reflects the PD-captive versioning, off the 1.7.1 main version:
+spec_version := 1.7.1.1
 jar := $(top_builddir)/asynchbase-$(spec_version)-pepperdata-$(TIMESTAMP).jar
 
 asynchbase_PROTOS := \
