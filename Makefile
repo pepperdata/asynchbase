@@ -41,7 +41,7 @@ spec_title := Asynchronous HBase Client
 spec_vendor := The Async HBase Authors
 # Semantic Versioning (see http://semver.org/).
 # NOTE(ankan): The following reflects the PD-captive versioning, off the 1.7.1 main version:
-spec_version := 1.7.1.1
+spec_version := 1.7.1.2
 jar := $(top_builddir)/asynchbase-$(spec_version)-pepperdata-$(TIMESTAMP).jar
 
 asynchbase_PROTOS := \
