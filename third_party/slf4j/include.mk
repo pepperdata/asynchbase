@@ -41,4 +41,12 @@ SLF4J_API_BASE_URL := http://central.maven.org/maven2/org/slf4j/slf4j-api/$(SLF4
 $(SLF4J_API): $(SLF4J_API).md5
 	set dummy "$(SLF4J_API_BASE_URL)" "$(SLF4J_API)"; shift; $(FETCH_DEPENDENCY)
 
-THIRD_PARTY += $(JCL_OVER_SLF4J) $(LOG4J_OVER_SLF4J) $(SLF4J_API)
+
+SLF4J_SIMPLE_VERSION := $(SLF4J_VERSION)
+SLF4J_SIMPLE := third_party/slf4j/slf4j-simple-$(SLF4J_SIMPLE_VERSION).jar
+SLF4J_SIMPLE_BASE_URL := http://central.maven.org/maven2/org/slf4j/slf4j-simple/$(SLF4J_SIMPLE_VERSION)
+
+$(SLF4J_SIMPLE): $(SLF4J_SIMPLE).md5
+	set dummy "$(SLF4J_SIMPLE_BASE_URL)" "$(SLF4J_SIMPLE)"; shift; $(FETCH_DEPENDENCY)
+
+THIRD_PARTY += $(JCL_OVER_SLF4J) $(LOG4J_OVER_SLF4J) $(SLF4J_API) $(SLF4J_SIMPLE)
