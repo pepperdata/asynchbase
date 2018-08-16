@@ -95,8 +95,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>2.5.1</version>
         <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
+          <source>1.8</source>
+          <target>1.8</target>
           <compilerArgument>-Xlint</compilerArgument>
           <excludes>
             <exclude>org/hbase/async/protobuf/ZeroCopyLiteralByteString.java</exclude>
@@ -190,7 +190,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.16</version>
         <configuration>
-          <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+          <argLine>-Xmx1024m</argLine>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
           <parallel>classes</parallel>
           <threadCount>2</threadCount>
@@ -330,6 +330,13 @@
       <groupId>org.javassist</groupId>
       <artifactId>javassist</artifactId>
       <version>@JAVASSIST_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>@SLF4J_SIMPLE_VERSION@</version>
       <scope>test</scope>
     </dependency>
 

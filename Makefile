@@ -182,6 +182,7 @@ unittest_SRC := \
 test_LIBADD := \
 	$(asynchbase_LIBADD)	\
 	$(LOG4J_OVER_SLF4J)	\
+	$(SLF4J_SIMPLE)	\
 	$(LOGBACK_CLASSIC)	\
 	$(LOGBACK_CORE)	\
 	$(JAVASSIST)	\
@@ -336,6 +337,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@JCL_OVER_SLF4J_VERSION@/$(JCL_OVER_SLF4J_VERSION)/' \
 	    -e 's/@JUNIT_VERSION@/$(JUNIT_VERSION)/' \
 	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
+	    -e 's/@SLF4J_SIMPLE_VERSION@/$(SLF4J_SIMPLE_VERSION)/' \
 	    -e 's/@MOCKITO_VERSION@/$(MOCKITO_VERSION)/' \
 	    -e 's/@NETTY_VERSION@/$(NETTY_VERSION)/' \
 	    -e 's/@OBJENESIS_VERSION@/$(OBJENESIS_VERSION)/' \
