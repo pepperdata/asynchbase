@@ -1,0 +1,114 @@
+#!/bin/bash
+#
+# Copyright (C) 2018 Pepperdata Inc. - All rights reserved.
+#
+# Prepares for a release by creating and storing a tag for the current version, creating
+# the special tag "current_release" for the release build to use, and incrementing the
+# version number (and restoring the SNAPSHOT designation) for the next development cycle.
+
+# Set to exit on error:
+set -e
+
+# ---------------------------------------
+# Extract the current version.
+# ---------------------------------------
+extract_version() {
+  local version_line="`grep "spec_version.*[0-9]\+" Makefile`"
+  old_version="`echo $version_line | sed -E -e 's/^[^0-9]*([0-9.]+).*$/\1/g'`"
+}
+
+# ---------------------------------------
+# Increment the version.
+# ---------------------------------------
+increment_version() {
+  # Increment the 4th version number:
+  new_version=$(echo $old_version |
+              awk '{split($0,a,".");printf "%d.%d.%d.%d",a[1],a[2],a[3],a[4]+1}')
+
+  # Replace the version in Makefile:
+  sed -i.orig -e "s/spec_version := $old_version/spec_version := $new_version/g" Makefile
+
+  # Add -SNAPSHOT to the maven version unless it already exists:
+  sed -i.orig -e 's:@spec_version@-pepperdata</version>:@spec_version@-pepperdata-SNAPSHOT</version>:' pom.xml.in
+
+  # Inspect the diff and Makefile to check if the replacement was successful:
+  git diff -U0 | grep "^-spec_version.*$old_version"
+  git diff -U0 | grep "^+spec_version.*$new_version"
+  ! grep "^spec_version.*$old_version" Makefile
+  grep "^spec_version.*$new_version" Makefile
+
+  # Commit the new version number:
+  submit_changes "Bump up the development version to $new_version"
+  echo "Succssfully updated the version number to $new_version"
+}
+
+# -----------------------------------------
+# Commit and submit changes with a message.
+# -----------------------------------------
+submit_changes() {
+  local msg="$1"
+  git add . && git commit -m "$msg"
+  push_commits
+}
+
+# ------------------------------------------
+# Pull remote changes and then push commits.
+# ------------------------------------------
+push_commits() {
+  local server="$(git config --get remote.origin.url)"
+  local branch="$(git rev-parse --abbrev-ref HEAD)"
+
+  # Specifies the server and branch to work with old git versions.
+  git pull --rebase $server $branch
+  git push $server $branch
+}
+
+# ----------------------------------------------
+# Drop the "-SNAPSHOT" suffix within pom.xml.in.
+# ----------------------------------------------
+drop_snapshot() {
+  if grep "@spec_version@-pepperdata-SNAPSHOT" pom.xml.in ; then
+    sed -i.orig -e "s/@spec_version@-pepperdata-SNAPSHOT/@spec_version@-pepperdata/g" pom.xml.in
+    submit_changes "Drop SNAPSHOT from the version within pom.xml.in"
+    echo "Succssfully dropped the SNAPSHOT designation"
+  fi
+}
+
+# ------------------------------
+# Add a release tag and push it.
+# ------------------------------
+add_release_tag() {
+  local tag="$1"
+  local reference="$2"
+
+  git tag -a $tag -m "Pepperdata AsyncHBase $old_version RC" $reference
+  git push --tags
+  git show-ref --tags "$tag"
+}
+
+# Prepare for a release branch if we are releasing from the main dev branch:
+extract_version
+echo "Old version: $old_version"
+if git branch | grep '^* master_pepperdata$' ; then
+  # Remove the SNAPSHOT designation for the release:
+  drop_snapshot
+
+  # Add a tag for the current version, so that we can always re-create it:
+  tag=v${old_version}
+  add_release_tag "$tag"
+
+  # Remove the "current_release" tag, if any:
+  git tag -d "current_release" || true
+  git push origin :refs/tags/current_release
+
+  # Create the "current_release" tag for the release in progress, and
+  # have it refer to the current version being released:
+  add_release_tag "current_release" "$tag"
+  [ 0 -eq $(git diff "$tag" "current_release" | wc -l) ]
+
+  # Finally, increment the version for the next development cycle,
+  # and add back the SNAPSHOT designation:
+  increment_version
+  echo "New version: $new_version"
+fi
+
