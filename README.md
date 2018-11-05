@@ -1,4 +1,5 @@
-# Asynchronous HBase
+# Pepperdata branch of Asynchronous HBase source.
+Source code available at https://github.com/pepperdata/asynchbase
 
 This is an alternative Java library to use HBase in applications that require
 a fully asynchronous, non-blocking, thread-safe, high-performance HBase API.
