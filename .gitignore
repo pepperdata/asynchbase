@@ -3,3 +3,14 @@ pom.xml
 target/
 /bin/
 .idea
+*.iml
+
+*.pyc
+.*.swp
+*.rrd
+*.class
+*.orig
+*.log
+
+# For mac finder
+.DS_Store

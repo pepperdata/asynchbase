@@ -57,7 +57,7 @@
 
   <build>
     <sourceDirectory>.mvn-compat/src/main/java</sourceDirectory>
-    <testSourceDirectory>test</testSourceDirectory>
+    <testSourceDirectory>.mvn-compat/src/test/java</testSourceDirectory>
 
     <plugins>
 
@@ -157,6 +157,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.12.4</version>
         <configuration>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
           <excludes>
             <exclude>**/TestIntegration.java</exclude>
             <exclude>**/TestIncrementCoalescing.java</exclude>
