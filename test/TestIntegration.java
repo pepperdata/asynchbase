@@ -44,6 +44,7 @@ import com.stumbleupon.async.DeferredGroupException;
 import org.hbase.async.CompareFilter.CompareOp;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.JUnitCore;
@@ -62,7 +63,7 @@ import static org.junit.Assert.*;
  *
  * Requires a locally running HBase cluster.
  */
-
+@Ignore // ignore for test runners
 final public class TestIntegration {
 
   private static final Logger LOG = Common.logger(TestIntegration.class);
