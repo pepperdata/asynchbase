@@ -702,6 +702,26 @@ public final class Scanner {
   }
 
   /**
+   * Indicates if this scanner has been opened for scanning.
+   *
+   * @return true if opened for scanning, false otherwise.
+   */
+  public boolean openedForScanning() {
+    return null != region;
+  }
+
+  /**
+   * Indicates if this scanner is done scanning.
+   *
+   * Note that scanners are not reusable, and once scanning is done, should not be used again.
+   *
+   * @return true if done scanning, false otherwise.
+   */
+  public boolean doneScanning() {
+    return DONE == region;
+  }
+
+  /**
    * Scans a number of rows.  Calling this method is equivalent to:
    * <pre>
    *   this.{@link #setMaxNumRows setMaxNumRows}(nrows);
