@@ -183,6 +183,40 @@
         </configuration>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <createDependencyReducedPom>false</createDependencyReducedPom>
+          <artifactSet>
+            <includes>
+              <include>com.google.protobuf:protobuf-java</include>
+            </includes>
+          </artifactSet>
+          <relocations>
+            <relocation>
+              <!-- NOTE(ankan): Required because asynchbase relies on protobuf
+                   version 2.5, that might not be compatible with other protobuf
+                   versions that we may use in components that use this lib (for
+                   example, we use protobuf v 2.6.1 in other projects, which is
+                   not compatible with protobuf v 2.5).  Note that the relocation
+                   prefix "pdahb" indicates "[P]epper[d]ata [A]sync [HB]ase". -->
+              <pattern>com.google.protobuf</pattern>
+              <shadedPattern>pdahb.com.google.protobuf</shadedPattern>
+            </relocation>
+          </relocations>
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
   
