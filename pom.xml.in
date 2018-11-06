@@ -118,10 +118,28 @@
         <configuration>
           <quiet>true</quiet>
           <validateLinks>true</validateLinks>
+          <additionalparam>${javadoc.opts}</additionalparam>
           <bottom>
             Copyright &#169; {inceptionYear}-{currentYear},
             ${project.organization.name}
           </bottom>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-site-plugin</artifactId>
+        <version>3.3</version>
+        <configuration>
+          <reportPlugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-javadoc-plugin</artifactId>
+              <configuration>
+                <additionalparam>${javadoc.opts}</additionalparam>
+              </configuration>
+            </plugin>
+          </reportPlugins>
         </configuration>
       </plugin>
 
@@ -186,6 +204,10 @@
       <activation>
         <jdk>1.8</jdk>
       </activation>
+      <properties>
+        <!-- Reduce the plethora of javadoc warnings under JDK 8: -->
+        <javadoc.opts>-Xdoclint:none</javadoc.opts>
+      </properties>
       <build>
         <plugins>
           <plugin>

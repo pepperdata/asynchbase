@@ -98,7 +98,7 @@ public final class RegionLocation {
   /**
    * The port the hosting region server is listening on for RPCs.
    * NOTE: If the region is not hosted, due to a split, move, offline or server
-   * failure, then the result may be 0. See {@link getHostname}
+   * failure, then the result may be 0. See {@link #getHostname}
    * @return The port of the hosting server or 0 if the region is offline
    */
   public int getPort() {

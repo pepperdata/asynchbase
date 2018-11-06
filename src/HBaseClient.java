@@ -2622,9 +2622,9 @@ public final class HBaseClient {
    * table. This method does not use the cache, rather it will scan HBase every
    * time you use it.
    * The fetch does not populate the local region cache with the discovered
-   * regions. To do so, use {@link prefetchMeta}.
+   * regions. To do so, use {@link #prefetchMeta}.
    * @param table The table to search for
-   * @return A defererred that will contain a non-null list of region locations.
+   * @return A deferred that will contain a non-null list of region locations.
    * The list may be empty or the result may contain an exception.
    * @since 1.7
    */
@@ -2637,9 +2637,9 @@ public final class HBaseClient {
    * table. This method does not use the cache, rather it will scan HBase every
    * time you use it.
    * The fetch does not populate the local region cache with the discovered
-   * regions. To do so, use {@link prefetchMeta}.
+   * regions. To do so, use {@link #prefetchMeta}.
    * @param table The table to search for
-   * @return A defererred that will contain a non-null list of region locations.
+   * @return A deferred that will contain a non-null list of region locations.
    * The list may be empty or the result may contain an exception.
    * @since 1.7
    */
@@ -3690,7 +3690,7 @@ public final class HBaseClient {
   
   /**
    * Some arbitrary junk that is unlikely to appear in a real row key.
-   * @see probeKey
+   * @see #probeKey
    */
   protected static byte[] PROBE_SUFFIX = {
     ':', 'A', 's', 'y', 'n', 'c', 'H', 'B', 'a', 's', 'e',

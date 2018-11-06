@@ -321,7 +321,7 @@ public final class GetRequest extends BatchableRpc
    * will not be returned by the scanner.  HBase has internal optimizations to
    * avoid loading in memory data filtered out in some cases.
    * @param timestamp The minimum timestamp to scan (inclusive).
-   * @return
+   * @return A reference to this {@link GetRequest}.
    * @throws IllegalArgumentException if {@code timestamp < 0}.
    * @throws IllegalArgumentException if {@code timestamp > getMaxTimestamp()}.
    * @see #setTimeRange
@@ -355,7 +355,7 @@ public final class GetRequest extends BatchableRpc
    * will not be returned by the scanner.  HBase has internal optimizations to
    * avoid loading in memory data filtered out in some cases.
    * @param timestamp The maximum timestamp to scan (exclusive).
- * @return
+   * @return A reference to this {@link GetRequest}.
    * @throws IllegalArgumentException if {@code timestamp < 0}.
    * @throws IllegalArgumentException if {@code timestamp < getMinTimestamp()}.
    * @see #setTimeRange
@@ -391,7 +391,7 @@ public final class GetRequest extends BatchableRpc
    * data filtered out in some cases.
    * @param min_timestamp The minimum timestamp to scan (inclusive).
    * @param max_timestamp The maximum timestamp to scan (exclusive).
- * @return
+   * @return A reference to this {@link GetRequest}.
    * @throws IllegalArgumentException if {@code min_timestamp < 0}
    * @throws IllegalArgumentException if {@code max_timestamp < 0}
    * @throws IllegalArgumentException if {@code min_timestamp > max_timestamp}
@@ -416,7 +416,7 @@ public final class GetRequest extends BatchableRpc
   /**
    * Specifies the filter to apply to cells in this row.
    * @param filter The filter.  If {@code null}, then no filter will be used.
- * @return
+   * @return A reference to this {@link GetRequest}.
    * @since 1.7
    */
   public GetRequest setFilter(final ScanFilter filter) {

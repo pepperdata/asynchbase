@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * A configuration class that stores key/value pairs as strings similar to
  * the System properties object. The class includes helper methods to parse the
  * strings into numbers or booleans and it allows for loading a standard Java
- * properties file from disk. The  {@link loadSystemAndDefaults} will be called
+ * properties file from disk. The  {@link #loadSystemAndDefaults} will be called
  * to set defaults and optionally load values from the System properties list.
  * <p>
  * Note that multiple threads can read from this config object but modifying

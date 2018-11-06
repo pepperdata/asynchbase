@@ -224,9 +224,9 @@ public final class Scanner {
   * In a reversed scan, the first Scanner opened is opened on the region
   * that the Scanner start key is in (the same as forward scan). But
   * subsequent scanners are opened via the overloaded
-  * {@link OpenScannerRequest} and the region to be opened on is
+  * OpenScannerRequest and the region to be opened on is
   * found through a META lookup using
-   * {@link HBaseClient#locateRegionClosestBeforeKey}.
+  * {@link HBaseClient#locateRegionClosestBeforeKey}.
   *
   */
   public void setReversed(boolean reversed){
