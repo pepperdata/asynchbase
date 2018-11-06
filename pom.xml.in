@@ -24,22 +24,9 @@
     </license>
   </licenses>
   <scm>
-    <connection>scm:git:git@github.com:OpenTSDB/asynchbase.git</connection>
-    <url>https://github.com/OpenTSDB/asynchbase</url>
+    <connection>scm:git:git@github.com:pepperdata/asynchbase.git</connection>
+    <url>https://github.com/pepperdata/asynchbase</url>
   </scm>
-  <issueManagement>
-    <system>GitHub</system>
-    <url>https://github.com/OpenTSDB/asynchbase/issues</url>
-  </issueManagement>
-  <mailingLists>
-    <mailingList>
-      <name>User List</name>
-      <post>asynchbase@googlegroups.com</post>
-      <subscribe>asynchbase+subscribe@googlegroups.com</subscribe>
-      <unsubscribe>asynchbase+unsubscribe@googlegroups.com</unsubscribe>
-      <archive>https://groups.google.com/group/asynchbase</archive>
-    </mailingList>
-  </mailingLists>
   <developers>
     <developer>
       <id>tsuna</id>
@@ -163,18 +150,6 @@
         </executions>
       </plugin>
       
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.3</version>
-        <extensions>true</extensions>
-        <configuration>
-           <serverId>ossrh</serverId>
-           <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-           <autoReleaseAfterClose>false</autoReleaseAfterClose>
-        </configuration>
-      </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -402,12 +377,42 @@
 
   </dependencies>
 
-  <parent>
-    <groupId>org.sonatype.oss</groupId>
-    <artifactId>oss-parent</artifactId>
-    <version>7</version>
-    <!--Empty relativePath is workaround.  See MNG-4687-->
-    <relativePath></relativePath>
-  </parent>
+  <repositories>
+    <repository>
+      <id>central</id>
+      <url>http://pep01.pepperdata.com:8081/artifactory/repo</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
+  <distributionManagement>
+    <repository>
+      <id>pep01.pepperdata.com</id>
+      <name>pep01.pepperdata.com-releases</name>
+      <url>http://pep01.pepperdata.com:8081/artifactory/libs-release-local</url>
+    </repository>
+    <snapshotRepository>
+      <id>pep01.pepperdata.com</id>
+      <name>pep01.pepperdata.com-snapshots</name>
+      <url>http://pep01.pepperdata.com:8081/artifactory/libs-snapshot-local</url>
+    </snapshotRepository>
+  </distributionManagement>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>central</id>
+      <name>Pepperdata Plugin Repository</name>
+      <url>http://pep01.pepperdata.com:8081/artifactory/repo</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+    </pluginRepository>
+  </pluginRepositories>
 
 </project>
