@@ -40,6 +40,15 @@
   </developers>
   <inceptionYear>2010</inceptionYear>
 
+  <!--
+  <parent>
+    <groupId>org.hbase</groupId>
+    <artifactId>asynchbase-parent</artifactId>
+    <version>1.0</version>
+    <relativePath>./parent-pom.xml</relativePath>
+  </parent>
+  -->
+
   <packaging>jar</packaging>
 
   <properties>
