@@ -1032,7 +1032,8 @@ public class TestMultiAction extends BaseTestHBaseClient {
 //    assertTrue(decoded.result(2) == MultiAction.SUCCESS);
 //    assertTrue(decoded.result(3) == MultiAction.SUCCESS);
 //  }
-  
+
+  @SuppressWarnings("unchecked")
   @Test
   public void deserializeGetsWithResponse() throws Exception {
     final List<ResultOrException> results = new ArrayList<ResultOrException>(2);
@@ -1072,7 +1073,8 @@ public class TestMultiAction extends BaseTestHBaseClient {
     assertEquals(1, result2_cells.get(0).timestamp());
     assertEquals(2, result2_cells.get(1).timestamp());
   }
-  
+
+  @SuppressWarnings("unchecked")
   @Test
   public void deserializeGetsWithResponseException() throws Exception {
     final List<ResultOrException> results = new ArrayList<ResultOrException>(2);
@@ -1110,7 +1112,8 @@ public class TestMultiAction extends BaseTestHBaseClient {
     Object result2 = decoded.result(1);
     assertTrue(result2 instanceof HBaseException);
   }
-  
+
+  @SuppressWarnings("unchecked")
   @Test
   public void deserializeGetsWithAssociatedCells() throws Exception {
     final List<ResultOrException> results = new ArrayList<ResultOrException>(2);
@@ -1150,7 +1153,8 @@ public class TestMultiAction extends BaseTestHBaseClient {
     assertEquals(1, result2_cells.size());
     assertEquals(2, result2_cells.get(0).timestamp());
   }
-  
+
+  @SuppressWarnings("unchecked")
   @Test
   public void deserializeGetsWithAssociatedCellsAndException() throws Exception {
     final List<ResultOrException> results = new ArrayList<ResultOrException>(2);
@@ -1203,7 +1207,7 @@ public class TestMultiAction extends BaseTestHBaseClient {
     row2.add(KV2);
 
     when(regionclient.isAlive()).thenReturn(true);
-    doAnswer(new Answer() {
+    doAnswer(new Answer<Object>() {
       public Object answer(final InvocationOnMock invocation) {
         get.getDeferred().callback(row);
         get2.getDeferred().callback(row2);
@@ -1232,7 +1236,7 @@ public class TestMultiAction extends BaseTestHBaseClient {
     row2.add(KV2);
 
     when(regionclient.isAlive()).thenReturn(true);
-    doAnswer(new Answer() {
+    doAnswer(new Answer<Object>() {
       public Object answer(final InvocationOnMock invocation) {
         get.getDeferred().callback(row);
         get2.getDeferred().callback(new NoSuchColumnFamilyException("boo", get2));

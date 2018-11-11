@@ -40,15 +40,6 @@
   </developers>
   <inceptionYear>2010</inceptionYear>
 
-  <!--
-  <parent>
-    <groupId>org.hbase</groupId>
-    <artifactId>asynchbase-parent</artifactId>
-    <version>1.0</version>
-    <relativePath>./parent-pom.xml</relativePath>
-  </parent>
-  -->
-
   <packaging>jar</packaging>
 
   <properties>
@@ -82,11 +73,28 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.5.1</version>
+        <version>3.2</version>
         <configuration>
           <source>1.7</source>
           <target>1.7</target>
-          <compilerArgument>-Xlint</compilerArgument>
+          <!-- NOTE(ankan):
+               Setting <fork> to true enables javac to interpret
+               the -XDignore.symbol.file option, which itself is
+               used to suppress the "sun internal proprietary API"
+               warnings.
+           -->
+          <fork>true</fork>
+          <compilerArgs>
+            <arg>-Xlint:all</arg>
+            <arg>-Xlint:-deprecation</arg>
+            <!-- NOTE(ankan):
+                 This is a convoluted way of suppressing the "sun
+                 internal propritary API" warnings; see
+                 https://stackoverflow.com/a/19503679 for an
+                 explanation.
+             -->
+            <arg>-XDignore.symbol.file</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
 
@@ -241,7 +249,7 @@
         <jdk>1.8</jdk>
       </activation>
       <properties>
-        <!-- Reduce the plethora of javadoc warnings under JDK 8: -->
+        <!-- NOTE(ankan): Reduce the plethora of javadoc warnings under JDK 8: -->
         <javadoc.opts>-Xdoclint:none</javadoc.opts>
       </properties>
       <build>
@@ -385,6 +393,8 @@
     </dependency>
 
   </dependencies>
+
+  <!-- Pepperdata-specific release management sections: -->
 
   <repositories>
     <repository>

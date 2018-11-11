@@ -1975,6 +1975,7 @@ public final class HBaseClient {
     };
 
   /** Singleton callback to handle responses of incrementColumnValue RPCs.  */
+  @SuppressWarnings("unchecked")
   private static final Callback<Map<byte[], Long>, Object> micv_done =
     new Callback<Map<byte[], Long>, Object>() {
       public Map<byte[], Long> call(final Object response) {
