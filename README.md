@@ -1,5 +1,5 @@
-# Pepperdata branch of Asynchronous HBase source.
-Source code available at https://github.com/pepperdata/asynchbase
+# Pepperdata Fork of Asynchronous HBase Source
+Source code is available at https://github.com/pepperdata/asynchbase.
 
 This is an alternative Java library to use HBase in applications that require
 a fully asynchronous, non-blocking, thread-safe, high-performance HBase API.
@@ -19,17 +19,15 @@ of tables or threads you want to use.  The Javadoc also spells out rules
 you have to follow in order to use the API properly in a multi-threaded
 application.
 
-The [GitHub repo branches](https://github.com/OpenTSDB/asynchbase) are laid 
+The [GitHub repo branches](https://github.com/pepperdata/asynchbase) are laid
 out as follows:
 
-* [`maintenance`](https://github.com/OpenTSDB/opentsdb/tree/maintenance): This
-  was the last stable version of AsyncHBase and should only have bug fix PRs
-  created against it. Bugs should also be patched in master and next.
-
 * [`master`](https://github.com/OpenTSDB/opentsdb/tree/master): This is the
-  current stable version of AsyncHBase and should only have bug fix PRs created
-  against it. Bug should also be patched in the next branch.
+  current stable version of the ***mainline*** AsyncHBase and should only have
+  bug fix PRs created against it.  At Pepperdata, We should strive to maintain
+  this to always be in synch with the *mainline* master branch.
 
-* [`next`](https://github.com/OpenTSDB/opentsdb/tree/next): This is the
-  development version of AsyncHBase and all new features or API changes should
+* [`master_pepperdata`](https://github.com/pepperdata/asynchbase/tree/master_pepperdata):
+  This is the *Pepperdata-specific* development version of AsyncHBase, and is the
+  *default* branch for the Pepperdata repo.  All new features or API changes should
   be written against this.
