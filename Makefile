@@ -203,6 +203,7 @@ test_LIBADD := \
 	$(MOCKITO)	\
 	$(OBJENESIS)	\
 	$(POWERMOCK_MOCKITO)	\
+	$(SLF4J_SIMPLE)	\
         $(jar)
 
 package_dir := $(subst .,/,$(package))
@@ -354,6 +355,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@POWERMOCK_MOCKITO_VERSION@/$(POWERMOCK_MOCKITO_VERSION)/' \
 	    -e 's/@PROTOBUF_VERSION@/$(PROTOBUF_VERSION)/' \
 	    -e 's/@SLF4J_API_VERSION@/$(SLF4J_API_VERSION)/' \
+	    -e 's/@SLF4J_SIMPLE_VERSION@/$(SLF4J_SIMPLE_VERSION)/' \
 	    -e 's/@SUASYNC_VERSION@/$(SUASYNC_VERSION)/' \
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
