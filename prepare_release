@@ -6,8 +6,8 @@
 # the special tag "current_release" for the release build to use, and incrementing the
 # version number (and restoring the SNAPSHOT designation) for the next development cycle.
 
-# Set to exit on error:
-set -e
+# Exits on error and echo the commands.
+set -e -x
 
 # ---------------------------------------
 # Extract the current version.
@@ -33,7 +33,7 @@ increment_version() {
 
   # Commit the new version number:
   submit_changes "Bump up the development version to $new_version"
-  echo "Succssfully updated the version number to $new_version"
+  echo "Successfully updated the version number to $new_version"
 }
 
 # -----------------------------------------
@@ -69,8 +69,6 @@ add_snapshot() {
     git diff -U0 | grep "^+spec_version.*$new_version"
     ! grep "^spec_version.*$old_version" Makefile
     grep "^spec_version.*$new_version" Makefile
-
-    submit_changes "Add SNAPSHOT to the version designator in Makefile"
     echo "Successfully added the SNAPSHOT designation"
   fi
 }
