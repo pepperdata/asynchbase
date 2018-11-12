@@ -105,6 +105,19 @@ add_release_tag() {
   git show-ref --tags "$tag"
 }
 
+# ----------------------------------------------------
+# Delete the "current_release" tag, only if it exists.
+# ----------------------------------------------------
+delete_current_release_tag() {
+  git fetch --tags
+  local cur_rel='current_release'
+  local grep_output=`git tag | grep $cur_rel`
+  if [ "$grep_output" == $cur_rel ]; then
+    git tag -d "$cur_rel"
+    git push origin :refs/tags/$cur_rel
+  fi
+}
+
 # Prepare for a release if we are releasing from the main dev branch:
 extract_version
 echo "Old version: $old_version"
@@ -117,8 +130,7 @@ if git branch | grep '^* master_pepperdata$' ; then
   add_release_tag "$tag"
 
   # Remove the "current_release" tag, if any:
-  git tag -d "current_release" || true
-  git push origin :refs/tags/current_release
+  delete_current_release_tag
 
   # Create the "current_release" tag for the release in progress, and
   # have it refer to the current version being released:
