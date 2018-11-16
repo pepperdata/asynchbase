@@ -181,7 +181,7 @@ public final class Scanner {
    * If == DONE, then we're done scanning.
    * Otherwise it contains a proper region name, and we're currently scanning.
    */
-  private RegionInfo region;
+  private volatile RegionInfo region;
 
   /**
    * This is the scanner ID we got from the RegionServer.
