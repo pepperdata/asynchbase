@@ -939,7 +939,11 @@ public final class Scanner {
             }
             arg = null;  // Clear the error.
           }  // else: the `return arg' below will propagate the error.
-        } else if (LOG.isDebugEnabled()) {
+          else {
+            LOG.warn("Closing scanner with unexpected error", error);
+          }
+        }
+        if (LOG.isDebugEnabled()) {
           LOG.debug("Scanner " + Bytes.hex(scanner_id) + " closed on "
                     + region);
         }
