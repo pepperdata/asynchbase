@@ -1590,6 +1590,9 @@ public final class HBaseClient {
   Deferred<Object> scanNextRows(final Scanner scanner) {
     final RegionInfo region = scanner.currentRegion();
     final RegionClient client = clientFor(region);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("scanNextRows region[" + region + "] client[" + client + "]");
+    }
     if (client == null) {
       // Oops, we no longer know anything about this client or region.  Our
       // cache was probably invalidated while the client was scanning.  This
