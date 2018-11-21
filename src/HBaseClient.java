@@ -3827,7 +3827,7 @@ public final class HBaseClient {
         timeout_handler = new IdleStateHandler(timer,
                 config.getInt("hbase.ipc.client.connection.idle_read_timeout"),
                 config.getInt("hbase.ipc.client.connection.idle_write_timeout"),
-                config.getInt("hbase.hbase.ipc.client.connection.idle_timeout"));
+                config.getInt("hbase.ipc.client.connection.idle_timeout"));
     }
 
     /**
