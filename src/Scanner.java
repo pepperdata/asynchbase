@@ -938,7 +938,10 @@ public final class Scanner {
                         error);
             }
             arg = null;  // Clear the error.
-          }  // else: the `return arg' below will propagate the error.
+          } else {
+            LOG.warn("Closing scanner " + Scanner.this + " with unexpected error", error);
+            // NOTE: The 'return arg' below will propagate the error.
+          }
         } else if (LOG.isDebugEnabled()) {
           LOG.debug("Scanner " + Bytes.hex(scanner_id) + " closed on "
                     + region);
@@ -1092,7 +1095,7 @@ public final class Scanner {
     return buf.toString();
   }
 
-  /** Helper method for {@link toString}.  */
+  /** Helper method for {@link #toString}.  */
   private void familiesToString(final StringBuilder buf) {
     if (families == null) {
       return;

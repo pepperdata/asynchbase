@@ -1590,6 +1590,9 @@ public final class HBaseClient {
   Deferred<Object> scanNextRows(final Scanner scanner) {
     final RegionInfo region = scanner.currentRegion();
     final RegionClient client = clientFor(region);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Called scanNextRows() for region[" + region + "] client[" + client + "]");
+    }
     if (client == null) {
       // Oops, we no longer know anything about this client or region.  Our
       // cache was probably invalidated while the client was scanning.  This
@@ -3824,7 +3827,7 @@ public final class HBaseClient {
         timeout_handler = new IdleStateHandler(timer,
                 config.getInt("hbase.ipc.client.connection.idle_read_timeout"),
                 config.getInt("hbase.ipc.client.connection.idle_write_timeout"),
-                config.getInt("hbase.hbase.ipc.client.connection.idle_timeout"));
+                config.getInt("hbase.ipc.client.connection.idle_timeout"));
     }
 
     /**
