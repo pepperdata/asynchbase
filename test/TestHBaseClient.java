@@ -39,9 +39,13 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -123,6 +127,68 @@ public class TestHBaseClient extends BaseTestHBaseClient {
     assertTrue((boolean) (Boolean) Whitebox.getInternalState(client, "increment_buffer_durable"));
     assertTrue((boolean) (Boolean) Whitebox.getInternalState(client, "scan_meta"));
     assertTrue(client.split_meta);
+  }
+
+  @Test
+  public void ctorWithConfigFile() throws Exception {
+    String expectedZkQuorumValue = "10.1.1.1:2181,10.1.1.2:2181,10.1.1.3:2181";
+    String expectedZkZnodeParentValue = "/hbase-unsecure";
+    int expectedIdleTimeout = 3600;
+    String contents = "#\n"
+        + "# TSDB setup for test\n"
+        + "#\n"
+        + "tsd.network.port = 4556\n"
+        + "tsd.core.auto_create_metrics = True\n"
+        + "tsd.core.meta.enable_realtime_ts = False\n"
+        + "tsd.storage.hbase.zk_basedir = " + expectedZkZnodeParentValue + '\n'
+        + "tsd.storage.hbase.zk_quorum = " + expectedZkQuorumValue + '\n'
+        + "tsd.http.request.enable_chunked = true\n"
+        + "tsd.http.request.max_chunk = 50000000\n"
+        + "tsd.http.use_bulkput = true\n"
+        + "tsd.storage.enable_compaction = false\n"
+        + "tsd.storage.uid.width.metric = 3\n"
+        + "tsd.storage.uid.width.tagk = 2\n"
+        + "tsd.storage.uid.width.tagv = 4\n"
+        + "\n"
+        + "tsd.core.plugin_path=/opt/pepperdata/opentsdb-plugins\n"
+        + "tsd.rpc.plugins=com.pepperdata.tsd.MetricInserter\n"
+        + "tsd.rpc.post_bind_plugins=com.pepperdata.tsd.Registry\n"
+        + "tsd.rpcplugin.registry.name = tsdb-wr\n"
+        + "tsd.rpcplugin.registry.zk_basedir = /realms\n"
+        + "# pdmetricinserter common\n"
+        + "tsd.rpcplugin.pdmetricinserter.check_insertion_status=false\n"
+        + "tsd.rpcplugin.pdmetricinserter.realm=alextest\n"
+        + "tsd.rpcplugin.pdmetricinserter.num_threads=8\n"
+        + "tsd.rpcplugin.pdmetricinserter.raw_max_age_days=32\n"
+        + "tsd.rpcplugin.pdmetricinserter.store_spark_analyzer_lookaside=true\n"
+        + "tsd.rpcplugin.pdmetricinserter.timeout=60\n"
+        + "\n"
+        + "# plugin config\n"
+        + "tsd.rpcplugin.pdmetricinserter.plugin.workflowid = true\n"
+        + "\n"
+        + "# async hbase client config\n"
+        + "hbase.zookeeper.quorum = " + expectedZkQuorumValue + '\n'
+        + "hbase.zookeeper.znode.parent = " + expectedZkZnodeParentValue + '\n'
+        + "hbase.ipc.client.connection.idle_timeout = "
+        + String.valueOf(expectedIdleTimeout) + '\n';
+
+    File configFile = File.createTempFile("testData", ".cfg");
+    configFile.deleteOnExit();
+    String configFilePath = configFile.getCanonicalPath();
+    try (Writer writer = new BufferedWriter(new OutputStreamWriter(
+        new FileOutputStream(configFilePath), "utf-8"))) {
+      writer.write(contents);
+    }
+    Config expectedConfig = new Config(configFilePath);
+    HBaseClient client = new HBaseClient(expectedConfig);
+    Config config = client.getConfig();
+    String zkQuorumValue = config.getString("hbase.zookeeper.quorum");
+    assertEquals(expectedZkQuorumValue, zkQuorumValue);
+    String zkZnodeParentValue = config.getString("hbase.zookeeper.znode.parent");
+    assertEquals(expectedZkZnodeParentValue, zkZnodeParentValue);
+    int idleTimeout = config.getInt("hbase.ipc.client.connection.idle_timeout");
+    assertEquals(expectedIdleTimeout, idleTimeout);
+    assertSame(expectedConfig, config);
   }
   
   @Test

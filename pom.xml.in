@@ -132,6 +132,7 @@
             Copyright &#169; {inceptionYear}-{currentYear},
             ${project.organization.name}
           </bottom>
+          <excludePackageNames>org.hbase.async.protobuf</excludePackageNames>
         </configuration>
       </plugin>
 
