@@ -762,32 +762,31 @@ public final class Scanner {
     } else if (region == null) {  // We need to open the scanner first.
       if (this.isReversed() && !this.isFirstReverseRegion()){
         return client.openReverseScanner(this)
-                .addCallbackDeferring(opened_scanner);
+                .addCallbackDeferring(opened_scanner_callback);
       } else {
         if (is_reversed && start_key == EMPTY_ARRAY){
           start_key = Bytes.createMaxByteArray(Short.MAX_VALUE - table.length
                   - 3);
         }
-        return client.openScanner(this).addCallbackDeferring(opened_scanner);
+        return client.openScanner(this).addCallbackDeferring(opened_scanner_callback);
       }
     }
     if(scannerClosedOnServer) {
       return scanFinished(moreRows);
     }
-    // Need to silence this warning because the callback `got_next_row'
+    // Need to silence this warning because the callback "got_next_row_callback"
     // declares its return type to be Object, because its return value
     // may or may not be deferred.
     @SuppressWarnings("unchecked")
     final Deferred<ArrayList<ArrayList<KeyValue>>> d = (Deferred)
-      client.scanNextRows(this).addCallbacks(got_next_row, nextRowErrback());
+      client.scanNextRows(this).addCallbacks(got_next_row_callback, next_row_errback);
     return d;
   }
 
   /**
    * Callback to handle response from opening a scanner
    */
-   final Callback<Deferred<ArrayList<ArrayList<KeyValue>>>, Object>
-    opened_scanner =
+   final Callback<Deferred<ArrayList<ArrayList<KeyValue>>>, Object> opened_scanner_callback =
       new Callback<Deferred<ArrayList<ArrayList<KeyValue>>>, Object>() {
           public Deferred<ArrayList<ArrayList<KeyValue>>> call(final Object arg) {
             final Response resp;
@@ -826,7 +825,7 @@ public final class Scanner {
    * This returns an {@code ArrayList<ArrayList<KeyValue>>} (possibly inside a
    * deferred one).
    */
-  final Callback<Object, Object> got_next_row =
+  private final Callback<Object, Object> got_next_row_callback =
     new Callback<Object, Object>() {
       public Object call(final Object response) {
         ArrayList<ArrayList<KeyValue>> rows = null;
@@ -861,8 +860,8 @@ public final class Scanner {
   /**
    * Creates a new errback to handle errors while trying to get more rows.
    */
-  final Callback<Object, Object> nextRowErrback() {
-    return new Callback<Object, Object>() {
+  private final Callback<Object, Object> next_row_errback =
+    new Callback<Object, Object>() {
       public Object call(final Object error) {
         final RegionInfo old_region = region;  // Save before invalidate().
         invalidate();  // If there was an error, don't assume we're still OK.
@@ -900,7 +899,6 @@ public final class Scanner {
         return "NextRow errback";
       }
     };
-  }
 
   /**
    * Closes this scanner (don't forget to call this when you're done with it!).
