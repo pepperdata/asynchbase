@@ -52,7 +52,6 @@ import org.jboss.netty.channel.socket.nio.NioChannelConfig;
 import org.jboss.netty.channel.socket.nio.NioClientBossPool;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioWorkerPool;
-import org.jboss.netty.handler.timeout.IdleState;
 import org.jboss.netty.handler.timeout.IdleStateAwareChannelHandler;
 import org.jboss.netty.handler.timeout.IdleStateEvent;
 import org.jboss.netty.handler.timeout.IdleStateHandler;
@@ -315,7 +314,7 @@ public final class HBaseClient {
    * is always the first to be updated, because that's the map from
    * which all the lookups are done in the fast-path of the requests
    * that need to locate a region.  The second map to be updated is
-   * {@link region2client}, because it comes second in the fast-path
+   * {@link #region2client}, because it comes second in the fast-path
    * of every requests that need to locate a region.  The third map
    * is only used to handle RegionServer disconnections gracefully.
    * <p>
@@ -2949,7 +2948,7 @@ public final class HBaseClient {
     
     HBaseRpc open_request = scanner.getOpenRequestForReverseScan(row);
     open_request.region = region;
-    open_request.getDeferred().addCallbackDeferring(scanner.opened_scanner)
+    open_request.getDeferred().addCallbackDeferring(scanner.opened_scanner_callback)
       .addCallbacks(new MetaScanCB(), new ErrorCB());
     client.sendRpc(open_request);
     return deferred;
