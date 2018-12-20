@@ -366,7 +366,7 @@ public class Config {
       loadHashMap(props);
   
       // no exceptions thrown, so save the valid path and exit
-      LOG.info("Successfully loaded configuration file: " + file);
+      LOG.info("Successfully loaded AsyncHBase configuration file: " + file);
       config_location = file;
     } finally {
       file_stream.close();

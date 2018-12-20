@@ -178,7 +178,9 @@ public final class Scanner {
   /**
    * The region currently being scanned.
    * If null, we haven't started scanning.
-   * If == DONE, then we're done scanning.
+   * If == DONE, then we're done scanning [NOTE(ankan): No longer strictly true: this is
+   * now only set to DONE once the RegionServer closes the scanner, which might be some time
+   * after all scanning is done].
    * Otherwise it contains a proper region name, and we're currently scanning.
    */
   private RegionInfo region;
@@ -711,17 +713,6 @@ public final class Scanner {
   }
 
   /**
-   * Indicates if this scanner is done scanning.
-   *
-   * Note that scanners are not reusable, and once scanning is done, should not be used again.
-   *
-   * @return true if done scanning, false otherwise.
-   */
-  public boolean doneScanning() {
-    return DONE == region;
-  }
-
-  /**
    * Scans a number of rows.  Calling this method is equivalent to:
    * <pre>
    *   this.{@link #setMaxNumRows setMaxNumRows}(nrows);
@@ -771,7 +762,7 @@ public final class Scanner {
         return client.openScanner(this).addCallbackDeferring(opened_scanner_callback);
       }
     }
-    if(scannerClosedOnServer) {
+    if (scannerClosedOnServer) {
       return scanFinished(moreRows);
     }
     // Need to silence this warning because the callback "got_next_row_callback"
