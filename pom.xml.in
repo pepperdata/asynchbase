@@ -195,10 +195,11 @@
           </execution>
         </executions>
         <configuration>
-          <createDependencyReducedPom>false</createDependencyReducedPom>
+          <createDependencyReducedPom>true</createDependencyReducedPom>
           <artifactSet>
             <includes>
               <include>com.google.protobuf:protobuf-java</include>
+              <include>io.netty:netty</include>
             </includes>
           </artifactSet>
           <relocations>
@@ -211,6 +212,11 @@
                    prefix "pdahb" indicates "[P]epper[d]ata [A]sync [HB]ase". -->
               <pattern>com.google.protobuf</pattern>
               <shadedPattern>pdahb.com.google.protobuf</shadedPattern>
+            </relocation>
+            <relocation>
+              <!-- NOTE(bpitman): opentsdb stuck on 3.9 -->
+              <pattern>org.jboss.netty</pattern>
+              <shadedPattern>pdahb.org.jboss.netty</shadedPattern>
             </relocation>
           </relocations>
         </configuration>
@@ -323,6 +329,10 @@
         <exclusion>
           <groupId>junit</groupId>
           <artifactId>junit</artifactId>
+        </exclusion>
+        <exclusion> <!-- zookeeper uses netty in server, not client  -->
+          <groupId>io.netty</groupId>
+          <artifactId>netty</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

@@ -24,7 +24,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 NETTY_MAJOR_VERSION = 3.9
-NETTY_VERSION := 3.9.4.Final
+NETTY_VERSION := 3.9.9.Final
 NETTY := third_party/netty/netty-$(NETTY_VERSION).jar
 NETTY_BASE_URL := http://central.maven.org/maven2/io/netty/netty/$(NETTY_VERSION)
 
